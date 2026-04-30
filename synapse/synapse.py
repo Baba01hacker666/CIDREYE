@@ -20,10 +20,13 @@ import json
 import os
 import sys
 
-def run_synapse(target, ports, output_file="results.json", extra_args=None):
-    cmd = ["./synapse", "-t", target, "-p", ports, "-o", output_file, "--json", "--quiet"]
+def run_synapse(binary_path, target, ports, output_file="results.json", extra_args=None):
+    cmd = [binary_path, "-t", target, "-p", ports, "-o", output_file, "--json", "--quiet"]
     if extra_args:
         cmd.extend(extra_args)
+
+    if os.path.exists(output_file):
+        os.remove(output_file)
 
     print(f"[*] Running SYNapse: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -52,11 +55,14 @@ def main():
 
     args, extra = parser.parse_known_args()
 
-    if not os.path.exists("./synapse"):
-        print("[-] SYNapse binary not found. Please compile it first.")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    binary_path = os.path.join(script_dir, "synapse")
+
+    if not os.path.isfile(binary_path) or not os.access(binary_path, os.X_OK):
+        print("[-] SYNapse binary not found or not executable. Please compile it first.")
         sys.exit(1)
 
-    results = run_synapse(args.target, args.ports, args.output, extra)
+    results = run_synapse(binary_path, args.target, args.ports, args.output, extra)
     print(f"[*] Found {len(results)} open ports.")
 
     for res in results:
