@@ -75,3 +75,25 @@ CLI flags take precedence over the YAML configuration.
 
 ## Performance Target
 SYNapse is tuned for minimal memory allocation and fast throughput. Depending on your system and network configuration, it can handle a massive number of concurrent connections (50k-200k+/sec). You may need to increase your OS file descriptor limits (`ulimit -n`) for optimal performance on large ranges.
+
+## Python Wrapper Enhancements
+
+The `synapse.py` helper now includes:
+
+- Default scan ports for common services: `21,22,80,443,3306,5432,6379,139,445,8080,8443`.
+- Automatic `--nuclei-tags cve` when HTTP/HTTPS ports are present and no nuclei tags are supplied.
+- Per-module toggles:
+  - `--no-ftp-module`
+  - `--no-smb-module`
+  - `--no-ssh-module`
+- Service detection output for common open services via `--detect-services` (e.g., MySQL/MariaDB, PostgreSQL, Redis, SMB, SSH, FTP, HTTP/HTTPS).
+- `.env` support for Telegram credentials:
+  - `TELEGRAM_BOT_TOKEN`
+  - `TELEGRAM_CHAT_ID`
+- Default output file: `synapse_results.jsonl`.
+
+Example:
+
+```bash
+python3 synapse.py -t 10.0.0.0/24 --detect-services
+```
