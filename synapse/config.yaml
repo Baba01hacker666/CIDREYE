@@ -10,6 +10,10 @@ modules:
   smb: true
   ssh: true
   service_detect: true
+  redis: true
+  mysql: true
+  postgres: true
+  http: true
 
 telegram:
   bot_token: ""

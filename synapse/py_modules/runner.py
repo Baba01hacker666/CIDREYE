@@ -1,10 +1,14 @@
-from . import ftp_module, service_detect_module, smb_module, ssh_module
+from . import ftp_module, http_module, mysql_module, postgres_module, redis_module, service_detect_module, smb_module, ssh_module
 
 MODULE_REGISTRY = {
     "ftp": ftp_module,
     "smb": smb_module,
     "ssh": ssh_module,
     "service_detect": service_detect_module,
+    "redis": redis_module,
+    "mysql": mysql_module,
+    "postgres": postgres_module,
+    "http": http_module,
 }
 
 def run_modules(results, enabled_modules):

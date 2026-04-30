@@ -93,6 +93,10 @@ modules:
   smb: false
   ssh: true
   service_detect: true
+  redis: true
+  mysql: true
+  postgres: true
+  http: true
 
 telegram:
   bot_token: "123456:ABCDEF"
@@ -106,6 +110,10 @@ Each module is separated under `py_modules/`:
 - `smb_module.py`
 - `ssh_module.py`
 - `service_detect_module.py`
+- `redis_module.py`
+- `mysql_module.py`
+- `postgres_module.py`
+- `http_module.py`
 - `runner.py`
 
 ### 3) Run

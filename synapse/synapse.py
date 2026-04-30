@@ -110,7 +110,7 @@ def main():
     results = run_synapse(binary_path, target, ports, output, extra, auto_cve_tag)
     print(f"[*] Found {len(results)} open ports.")
 
-    enabled_modules = cfg.get("modules", {"ftp": True, "smb": True, "ssh": True, "service_detect": True})
+    enabled_modules = cfg.get("modules", {"ftp": True, "smb": True, "ssh": True, "service_detect": True, "redis": True, "mysql": True, "postgres": True, "http": True})
     findings = run_modules(results, enabled_modules=enabled_modules)
 
     telegram = cfg.get("telegram", {})
