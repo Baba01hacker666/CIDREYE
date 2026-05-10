@@ -1,3 +1,9 @@
+try:
+    import paramiko
+    SSH_AVAILABLE = True
+except ImportError:
+    SSH_AVAILABLE = False
+
 DEFAULT_CREDS = [
     ("admin", "admin"),
     ("admin", "password"),
@@ -7,11 +13,9 @@ DEFAULT_CREDS = [
 ]
 
 def run(ip, port):
-    if port != 22:
+    if not SSH_AVAILABLE:
         return None
-    try:
-        import paramiko
-    except Exception:
+    if port != 22:
         return None
 
     for user, pwd in DEFAULT_CREDS:

@@ -1,7 +1,11 @@
+try:
+    import smbclient
+    SMB_AVAILABLE = True
+except ImportError:
+    SMB_AVAILABLE = False
+
 def run(ip, port):
-    try:
-        import smbclient
-    except Exception:
+    if not SMB_AVAILABLE:
         return None
     if port not in (139, 445):
         return None
