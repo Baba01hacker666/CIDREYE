@@ -23,6 +23,12 @@ func TestParse(t *testing.T) {
 		{"out of range low", "0", nil, true},
 		{"out of range high", "65536", nil, true},
 		{"invalid range bounds", "10-5", nil, true},
+		{"invalid range start", "abc-80", nil, true},
+		{"invalid range end", "80-abc", nil, true},
+		{"invalid range leading hyphen", "-80", nil, true},
+		{"only comma", ",", nil, true},
+		{"range out of range high", "1-65536", nil, true},
+		{"range out of range low", "0-80", nil, true},
 	}
 
 	for _, tt := range tests {
