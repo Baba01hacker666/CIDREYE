@@ -202,3 +202,30 @@ func hasFileContent(filePath string) (bool, error) {
 	}
 	return info.Size() > 0, nil
 }
+
+
+type NucleiFinding struct {
+	TemplateID string `json:"template-id"`
+	Host       string `json:"host"`
+	Info       struct {
+		Name     string `json:"name"`
+		Severity string `json:"severity"`
+	} `json:"info"`
+}
+
+func parseSeverity(sev string) int {
+	switch strings.ToLower(strings.TrimSpace(sev)) {
+	case "info":
+		return 0
+	case "low":
+		return 1
+	case "medium":
+		return 2
+	case "high":
+		return 3
+	case "critical":
+		return 4
+	default:
+		return -1
+	}
+}
