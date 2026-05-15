@@ -50,6 +50,7 @@ func main() {
 		progFlag          bool
 		nucleiFlag        bool
 		nucleiTags        string
+		nucleiTemplates   string
 		nucleiMinSeverity string
 		nucleiOutput      string
 		telegramFlag      bool
@@ -78,6 +79,7 @@ func main() {
 	flag.BoolVar(&progFlag, "progress", false, "Print periodic progress updates")
 	flag.BoolVar(&nucleiFlag, "nuclei", false, "Enable optional nuclei post-scan pipeline with automatic technology detection")
 	flag.StringVar(&nucleiTags, "nuclei-tags", "", "Comma-separated nuclei tags filter")
+	flag.StringVar(&nucleiTemplates, "nuclei-templates", "", "Comma-separated nuclei templates or directories")
 	flag.StringVar(&nucleiMinSeverity, "nuclei-min-severity", "", "Minimum nuclei severity (info|low|medium|high|critical)")
 	flag.StringVar(&nucleiOutput, "nuclei-output", "", "Nuclei output text file")
 	flag.BoolVar(&telegramFlag, "telegram", false, "Send nuclei output to Telegram")
@@ -144,6 +146,9 @@ func main() {
 	}
 	if setFlags["nuclei"] {
 		cfg.Nuclei.Enabled = nucleiFlag
+	}
+	if nucleiTemplates != "" {
+		cfg.Nuclei.Templates = nucleiTemplates
 	}
 	if nucleiTags != "" {
 		cfg.Nuclei.Tags = nucleiTags

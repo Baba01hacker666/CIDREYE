@@ -17,6 +17,7 @@ import (
 type NucleiConfig struct {
 	Enabled     bool           `yaml:"enabled"`
 	Tags        string         `yaml:"tags"`
+	Templates   string         `yaml:"templates"`
 	MinSeverity string         `yaml:"min_severity"`
 	OutputFile  string         `yaml:"output_file"`
 	Telegram    TelegramConfig `yaml:"telegram"`
