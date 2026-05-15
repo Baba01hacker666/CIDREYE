@@ -99,10 +99,60 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		}
 		filteredFile.Close()
 
-		if err := sendToTelegram(cfg.Telegram, filteredFile.Name()); err != nil {
+		if err := sendSummaryToTelegram(cfg.Telegram, findings, filteredFile.Name()); err != nil {
 			return fmt.Errorf("telegram send failed: %w", err)
 		}
 		writer.Log("Nuclei output sent to Telegram chat %s", cfg.Telegram.ChatID)
+	}
+	return nil
+}
+
+func sendSummaryToTelegram(cfg TelegramConfig, findings []NucleiFinding, rawFilePath string) error {
+	if cfg.BotToken == "" || cfg.ChatID == "" {
+		return fmt.Errorf("telegram enabled but bot token/chat id is missing")
+	}
+
+	severityCounts := make(map[string]int)
+	for _, f := range findings {
+		sev := strings.ToUpper(f.Info.Severity)
+		severityCounts[sev]++
+	}
+
+	summary := "SYNapse Nuclei Scan Complete.\n"
+	for sev, count := range severityCounts {
+		summary += fmt.Sprintf("- %s: %d\n", sev, count)
+	}
+	
+	summary += "\nTop Findings:\n"
+	for i, f := range findings {
+		if i >= 10 {
+			summary += "... and more.\n"
+			break
+		}
+		summary += fmt.Sprintf("[%s] %s on %s\n", strings.ToUpper(f.Info.Severity), f.TemplateID, f.Host)
+	}
+
+	// First try to send the text message
+	timeout := cfg.UploadTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", cfg.BotToken)
+	data := strings.NewReader(fmt.Sprintf("chat_id=%s&text=%s", cfg.ChatID, strings.ReplaceAll(summary, "\n", "%0A")))
+	req, _ := http.NewRequest(http.MethodPost, url, data)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	// If there are many findings, also send the document
+	if len(findings) > 0 {
+		return sendToTelegram(cfg, rawFilePath)
 	}
 	return nil
 }
