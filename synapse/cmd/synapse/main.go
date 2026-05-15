@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"synapse/internal/sysutil"
 	"synapse/internal/output"
 	"synapse/internal/ports"
 	"synapse/internal/scanner"
@@ -34,6 +35,11 @@ type Config struct {
 }
 
 func main() {
+	// Try to raise FD limits at the very start to support high concurrency
+	if err := sysutil.RaiseFileDescriptorLimit(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to raise file descriptor limit: %v\n", err)
+	}
+
 	var (
 		configFile        string
 		targetFlag        string
