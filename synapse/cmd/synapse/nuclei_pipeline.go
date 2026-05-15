@@ -1,13 +1,14 @@
 package main
 
 import (
+	"encoding/json"
+	"bufio"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"time"
 
@@ -36,11 +37,6 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		return nil
 	}
 
-	minSeverity := normalizeSeverity(cfg.MinSeverity)
-	if minSeverity == "" {
-		minSeverity = "high"
-	}
-
 	targetsFile, err := os.CreateTemp("", "synapse-open-targets-*.txt")
 	if err != nil {
 		return fmt.Errorf("create nuclei targets file: %w", err)
@@ -52,19 +48,25 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		if _, err := targetsFile.WriteString(t + "\n"); err != nil {
 			return fmt.Errorf("write nuclei targets: %w", err)
 		}
+	targetsFile.Close()
 	}
 
 	outputFile := cfg.OutputFile
 	if outputFile == "" {
-		outputFile = "nuclei-results.txt"
+		outputFile = "nuclei-results.jsonl"
 	}
 
-	args := []string{"-l", targetsFile.Name(), "-as", "-severity", severityFilter(minSeverity), "-nc", "-o", outputFile}
+	args := []string{"-l", targetsFile.Name(), "-jsonl", "-o", outputFile, "-nc"}
 	if cfg.Tags != "" {
 		args = append(args, "-tags", cfg.Tags)
 	}
+	if cfg.Templates != "" {
+		args = append(args, "-t", cfg.Templates)
+	} else {
+		args = append(args, "-as")
+	}
 
-	writer.Log("Running nuclei with automatic technology detection (-as)...")
+	writer.Log("Running nuclei...")
 	cmd := exec.Command("nuclei", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -73,46 +75,36 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 	}
 
 	if cfg.Telegram.Enabled {
-		filteredFile, err := filterCriticalHigh(outputFile)
+		findings, err := filterBySeverity(outputFile, cfg.MinSeverity)
 		if err != nil {
 			return fmt.Errorf("filter telegram output: %w", err)
 		}
-		defer os.Remove(filteredFile)
 
-		hasContent, err := hasFileContent(filteredFile)
-		if err != nil {
-			return fmt.Errorf("check filtered telegram output: %w", err)
-		}
-		if !hasContent {
-			writer.Log("No HIGH/CRITICAL nuclei findings to send to Telegram. Skipping upload.")
+		if len(findings) == 0 {
+			writer.Log("No findings matching minimum severity to send to Telegram. Skipping upload.")
 			return nil
 		}
 
-		if err := sendToTelegram(cfg.Telegram, filteredFile); err != nil {
+		filteredFile, err := os.CreateTemp("", "synapse-telegram-*.json")
+		if err != nil {
+			return fmt.Errorf("create telegram output file: %w", err)
+		}
+		defer os.Remove(filteredFile.Name())
+
+		encoder := json.NewEncoder(filteredFile)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(findings); err != nil {
+			filteredFile.Close()
+			return fmt.Errorf("encode telegram output: %w", err)
+		}
+		filteredFile.Close()
+
+		if err := sendToTelegram(cfg.Telegram, filteredFile.Name()); err != nil {
 			return fmt.Errorf("telegram send failed: %w", err)
 		}
 		writer.Log("Nuclei output sent to Telegram chat %s", cfg.Telegram.ChatID)
 	}
 	return nil
-}
-
-func normalizeSeverity(sev string) string {
-	s := strings.ToLower(strings.TrimSpace(sev))
-	switch s {
-	case "info", "low", "medium", "high", "critical":
-		return s
-	default:
-		return ""
-	}
-}
-
-func severityFilter(minSeverity string) string {
-	all := []string{"info", "low", "medium", "high", "critical"}
-	idx := slices.Index(all, minSeverity)
-	if idx == -1 {
-		idx = 3
-	}
-	return strings.Join(all[idx:], ",")
 }
 
 func sendToTelegram(cfg TelegramConfig, filePath string) error {
@@ -165,44 +157,41 @@ func sendToTelegram(cfg TelegramConfig, filePath string) error {
 	return nil
 }
 
-func filterCriticalHigh(inputFile string) (string, error) {
+func filterBySeverity(inputFile string, minSevStr string) ([]NucleiFinding, error) {
 	file, err := os.Open(inputFile)
 	if err != nil {
-		return "", err
+		if os.IsNotExist(err) {
+			return []NucleiFinding{}, nil
+		}
+		return nil, err
 	}
 	defer file.Close()
 
-	outFile, err := os.CreateTemp("", "synapse-telegram-*.txt")
-	if err != nil {
-		return "", err
-	}
-	defer outFile.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return "", err
+	minSev := parseSeverity(minSevStr)
+	if minSev == -1 {
+		minSev = 3 // default high
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "[critical]") || strings.Contains(line, "[high]") {
-			if _, err := outFile.WriteString(line + "\n"); err != nil {
-				return "", err
-			}
+	var findings []NucleiFinding
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var finding NucleiFinding
+		if err := json.Unmarshal(line, &finding); err != nil {
+			continue // skip invalid lines
+		}
+		if parseSeverity(finding.Info.Severity) >= minSev {
+			findings = append(findings, finding)
 		}
 	}
-
-	return outFile.Name(), nil
-}
-
-func hasFileContent(filePath string) (bool, error) {
-	info, err := os.Stat(filePath)
-	if err != nil {
-		return false, err
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
-	return info.Size() > 0, nil
+	return findings, nil
 }
-
 
 type NucleiFinding struct {
 	TemplateID string `json:"template-id"`
@@ -229,3 +218,4 @@ func parseSeverity(sev string) int {
 		return -1
 	}
 }
+
