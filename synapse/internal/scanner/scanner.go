@@ -218,20 +218,42 @@ func (s *Scanner) OpenTargets() []string {
 }
 
 func grabBanner(conn net.Conn, timeout time.Duration) string {
-	// Set read deadline
-	conn.SetReadDeadline(time.Now().Add(timeout))
+	// Phase 1: Passive read (wait for server to speak first)
+	// We split the timeout in half for the passive read
+	passiveTimeout := timeout / 2
+	conn.SetReadDeadline(time.Now().Add(passiveTimeout))
 
-	buf := make([]byte, 256)
+	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
-	if err != nil || n == 0 {
-		// Could send a simple HTTP request if needed to coax a banner, but standard masscan approach is passive first.
+
+	if n > 0 {
+		return cleanBanner(string(buf[:n]))
+	}
+
+	if err != nil {
+		var netErr net.Error
+		if !(errors.As(err, &netErr) && netErr.Timeout()) {
+			// If not a timeout (e.g. EOF), connection is dead
+			return ""
+		}
+	}
+
+	// Phase 2: Active probe
+	// If passive read timed out, send an HTTP GET probe
+	probe := []byte("GET / HTTP/1.0\r\n\r\n")
+	conn.SetWriteDeadline(time.Now().Add(passiveTimeout))
+	if _, err := conn.Write(probe); err != nil {
 		return ""
 	}
 
-	// Clean up unprintable chars
-	banner := string(buf[:n])
-	banner = cleanBanner(banner)
-	return banner
+	// Read response from the active probe
+	conn.SetReadDeadline(time.Now().Add(passiveTimeout))
+	n, err = conn.Read(buf)
+	if n > 0 {
+		return cleanBanner(string(buf[:n]))
+	}
+
+	return ""
 }
 
 func cleanBanner(b string) string {

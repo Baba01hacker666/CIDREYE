@@ -153,3 +153,41 @@ func TestScanner_OpenTargets_Sorted(t *testing.T) {
 		t.Fatalf("OpenTargets() = %v, want %v", got, want)
 	}
 }
+
+func TestGrabBannerActiveProbe(t *testing.T) {
+	// Create a local TCP server that requires an HTTP GET before responding
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	defer l.Close()
+
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		
+		// Read the probe
+		buf := make([]byte, 1024)
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		n, _ := conn.Read(buf)
+		
+		if strings.HasPrefix(string(buf[:n]), "GET / HTTP/1.0") {
+			conn.Write([]byte("HTTP/1.1 200 OK\r\nServer: CustomHTTP\r\n\r\n"))
+		}
+	}()
+
+	// Connect as a client and test grabBanner
+	conn, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	banner := grabBanner(conn, 2*time.Second)
+	if !strings.Contains(banner, "CustomHTTP") {
+		t.Errorf("Expected banner to contain 'CustomHTTP', got: %s", banner)
+	}
+}
