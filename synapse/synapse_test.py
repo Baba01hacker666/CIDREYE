@@ -18,20 +18,34 @@ class SynapseConfigTests(unittest.TestCase):
         self.assertFalse(self.synapse._has_web_ports("22,3306,5432"))
 
     def test_config_has_nuclei_tags(self):
-        self.assertTrue(self.synapse._config_has_nuclei_tags({"nuclei_tags": "cve,rce"}))
-        self.assertTrue(self.synapse._config_has_nuclei_tags({"nuclei": {"tags": "xss"}}))
+        self.assertTrue(
+            self.synapse._config_has_nuclei_tags({"nuclei_tags": "cve,rce"})
+        )
+        self.assertTrue(
+            self.synapse._config_has_nuclei_tags({"nuclei": {"tags": "xss"}})
+        )
         self.assertFalse(self.synapse._config_has_nuclei_tags({}))
-
-
 
     def test_resolve_auto_cve_tag_preserves_default_enabled_behavior(self):
         self.assertTrue(self.synapse._resolve_auto_cve_tag({}))
-        self.assertTrue(self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_http": True}))
-        self.assertFalse(self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_http": False}))
+        self.assertTrue(
+            self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_http": True})
+        )
+        self.assertFalse(
+            self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_http": False})
+        )
 
     def test_resolve_auto_cve_tag_prefers_web_key_when_present(self):
-        self.assertFalse(self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_web": False, "auto_cve_tag_for_http": True}))
-        self.assertTrue(self.synapse._resolve_auto_cve_tag({"auto_cve_tag_for_web": True, "auto_cve_tag_for_http": False}))
+        self.assertFalse(
+            self.synapse._resolve_auto_cve_tag(
+                {"auto_cve_tag_for_web": False, "auto_cve_tag_for_http": True}
+            )
+        )
+        self.assertTrue(
+            self.synapse._resolve_auto_cve_tag(
+                {"auto_cve_tag_for_web": True, "auto_cve_tag_for_http": False}
+            )
+        )
 
     def test_send_telegram_skips_empty_message(self):
         with mock.patch("synapse.urllib.request.urlopen") as urlopen_mock:
@@ -39,10 +53,26 @@ class SynapseConfigTests(unittest.TestCase):
             self.assertTrue(ok)
             urlopen_mock.assert_not_called()
 
+    def test_resolve_binary_path_uses_first_executable_candidate(self):
+        with mock.patch("synapse.os.path.isfile", return_value=True), mock.patch(
+            "synapse.os.access", return_value=True
+        ):
+            self.assertEqual(
+                self.synapse.resolve_binary_path("/tmp/synapse"), "/tmp/synapse"
+            )
+
+    def test_resolve_binary_path_returns_none_when_missing(self):
+        with mock.patch("synapse.os.path.isfile", return_value=False):
+            self.assertIsNone(self.synapse.resolve_binary_path("/tmp/missing"))
+
     def test_run_synapse_does_not_append_cve_when_cli_tags_present(self):
-        with mock.patch("synapse.subprocess.run") as run_mock, mock.patch("synapse.os.path.exists", return_value=False):
+        with mock.patch("synapse.subprocess.run") as run_mock, mock.patch(
+            "synapse.os.path.exists", return_value=False
+        ):
             run_mock.return_value.returncode = 0
-            self.synapse.run_synapse("/bin/syn", "127.0.0.1", "80", extra_args=["--nuclei-tags", "rce"])
+            self.synapse.run_synapse(
+                "/bin/syn", "127.0.0.1", "80", extra_args=["--nuclei-tags", "rce"]
+            )
             cmd = run_mock.call_args[0][0]
             self.assertEqual(cmd.count("--nuclei-tags"), 1)
 
