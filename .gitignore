@@ -1,0 +1,15 @@
+# Build outputs
+/bin/
+/synapse/synapse
+/synapse/synapse_bin
+
+# Python caches and virtual environments
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+*.py[cod]
+
+# Local scan output
+*.jsonl
+nuclei-results.txt

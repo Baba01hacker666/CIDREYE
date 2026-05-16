@@ -11,6 +11,13 @@ import yaml
 from py_modules import run_modules
 
 DEFAULT_OUTPUT_FILE = "synapse_results.jsonl"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+DEFAULT_CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.yaml")
+DEFAULT_BINARY_CANDIDATES = (
+    os.path.join(REPO_ROOT, "bin", "synapse"),
+    os.path.join(SCRIPT_DIR, "synapse"),
+)
 DEFAULT_COMMON_PORTS = "21,22,80,443,3306,5432,6379,139,445,8080,8443"
 WEB_PORTS = {80, 81, 443, 591, 593, 8000, 8080, 8081, 8443, 8888, 3000, 5000, 7001}
 
@@ -22,7 +29,9 @@ def send_telegram(token, chat_id, text):
 
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
+        data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode(
+            "utf-8"
+        )
         req = urllib.request.Request(url, data=data)
         with urllib.request.urlopen(req, timeout=10) as response:
             return response.status == 200
@@ -66,6 +75,13 @@ def _config_has_nuclei_tags(cfg):
     return bool(nuclei_cfg.get("tags"))
 
 
+def resolve_binary_path(binary_path=None):
+    """Return the first executable SYNapse binary path for wrapper execution."""
+    candidates = [binary_path] if binary_path else list(DEFAULT_BINARY_CANDIDATES)
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
 def _resolve_auto_cve_tag(cfg):
@@ -75,11 +91,33 @@ def _resolve_auto_cve_tag(cfg):
         return bool(cfg.get("auto_cve_tag_for_http"))
     return True
 
-def run_synapse(binary_path, target, ports, output_file=DEFAULT_OUTPUT_FILE, extra_args=None, auto_cve_tag=True):
-    cmd = [binary_path, "-t", target, "-p", ports, "-o", output_file, "--json", "--quiet"]
+
+def run_synapse(
+    binary_path,
+    target,
+    ports,
+    output_file=DEFAULT_OUTPUT_FILE,
+    extra_args=None,
+    auto_cve_tag=True,
+):
+    cmd = [
+        binary_path,
+        "-t",
+        target,
+        "-p",
+        ports,
+        "-o",
+        output_file,
+        "--json",
+        "--quiet",
+    ]
     if extra_args:
         cmd.extend(extra_args)
-    if auto_cve_tag and _has_web_ports(ports) and not any(arg.startswith("--nuclei-tags") for arg in (extra_args or [])):
+    if (
+        auto_cve_tag
+        and _has_web_ports(ports)
+        and not any(arg.startswith("--nuclei-tags") for arg in (extra_args or []))
+    ):
         cmd.extend(["--nuclei-tags", "cve"])
 
     if os.path.exists(output_file):
@@ -108,7 +146,11 @@ def main():
     parser.add_argument("-t", "--target", help="Target IP or CIDR")
     parser.add_argument("-p", "--ports", help="Ports to scan")
     parser.add_argument("-o", "--output", help="Output JSONL file")
-    parser.add_argument("--config", default="config.yaml", help="Path to config YAML (default: config.yaml)")
+    parser.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG_FILE,
+        help=f"Path to config YAML (default: {DEFAULT_CONFIG_FILE})",
+    )
     parser.add_argument("--telegram-token", help="Legacy wrapper telegram token")
     parser.add_argument("--telegram-chat", help="Legacy wrapper telegram chat ID")
     parser.add_argument("--telegram-chat-id", help="Telegram chat ID alias")
@@ -124,22 +166,38 @@ def main():
         print("[-] Target is required (via --target or config.yaml target).")
         sys.exit(1)
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    binary_path = os.path.join(script_dir, "synapse")
-    if not os.path.isfile(binary_path) or not os.access(binary_path, os.X_OK):
-        print("[-] SYNapse binary not found or not executable. Please compile it first.")
+    binary_path = resolve_binary_path()
+    if not binary_path:
+        candidates = ", ".join(DEFAULT_BINARY_CANDIDATES)
+        print(
+            f"[-] SYNapse binary not found or not executable. Run `make build` first. Checked: {candidates}"
+        )
         sys.exit(1)
 
     results = run_synapse(binary_path, target, ports, output, extra, auto_cve_tag)
     print(f"[*] Found {len(results)} open ports.")
 
-    enabled_modules = cfg.get("modules", {"ftp": True, "smb": True, "ssh": True, "service_detect": True, "redis": True, "mysql": True, "postgres": True, "http": True})
+    enabled_modules = cfg.get(
+        "modules",
+        {
+            "ftp": True,
+            "smb": True,
+            "ssh": True,
+            "service_detect": True,
+            "redis": True,
+            "mysql": True,
+            "postgres": True,
+            "http": True,
+        },
+    )
     findings = run_modules(results, enabled_modules=enabled_modules)
 
     telegram = cfg.get("telegram", {})
     token = args.telegram_token or telegram.get("bot_token")
     chat = args.telegram_chat or args.telegram_chat_id or telegram.get("chat_id")
-    alert_findings = [f for f in findings if f.startswith("[HIGH]") or f.startswith("[CRITICAL]")]
+    alert_findings = [
+        f for f in findings if f.startswith("[HIGH]") or f.startswith("[CRITICAL]")
+    ]
     if alert_findings and token and chat:
         msg = "SYNapse Module Findings:\n" + "\n".join(alert_findings)
         send_telegram(token, chat, msg)

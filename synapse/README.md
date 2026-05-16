@@ -17,27 +17,41 @@ A high-performance, non-root, userland TCP scanner built in pure Go. Inspired by
 
 ## Installation
 
+From the repository root, use the provided Makefile so you do not need to remember the nested module path:
+
 ```bash
-go build -o synapse ./cmd/synapse
+make build
+```
+
+This writes the scanner binary to `./bin/synapse`. If you specifically need a copy beside `synapse.py`, run:
+
+```bash
+make build-wrapper
+```
+
+Manual build from the repository root is also supported through the Go workspace:
+
+```bash
+go build -trimpath -o bin/synapse ./synapse/cmd/synapse
 ```
 
 ## Usage
 
 ```bash
-# Basic scan of a single IP
-./synapse -t 192.168.1.1 -p 80,443
+# Basic scan of a single IP, after `make build` from the repository root
+../bin/synapse -t 192.168.1.1 -p 80,443
 
 # Scan a CIDR range with custom concurrency and timeout
-./synapse -t 10.0.0.0/24 -p 1-1000 -c 5000 --timeout 500
+../bin/synapse -t 10.0.0.0/24 -p 1-1000 -c 5000 --timeout 500
 
 # Scan from a file containing targets, save as JSON, and enable banner grabbing
-./synapse -t targets.txt -p 22,80 -o results.json --json --banner
+../bin/synapse -t targets.txt -p 22,80 -o results.json --json --banner
 
 # Scan using top1000 ports, excluding specific IPs, with retries and progress tracking
-./synapse -t 10.0.0.0/16 -p top1000 -e exclusions.txt --retries 1 --progress
+../bin/synapse -t 10.0.0.0/16 -p top1000 -e exclusions.txt --retries 1 --progress
 
 # Run optional nuclei pipeline with technology detection and minimum severity HIGH
-./synapse -t 192.168.1.0/24 -p 80,443 --nuclei --nuclei-min-severity high --nuclei-tags cve,rce --nuclei-output nuclei-results.txt
+../bin/synapse -t 192.168.1.0/24 -p 80,443 --nuclei --nuclei-min-severity high --nuclei-tags cve,rce --nuclei-output nuclei-results.txt
 ```
 
 ### Configuration via YAML
@@ -68,7 +82,7 @@ nuclei:
 
 Run with the config file:
 ```bash
-./synapse -config config.yaml
+../bin/synapse -config config.yaml
 ```
 
 CLI flags take precedence over the YAML configuration.
@@ -119,6 +133,10 @@ Each module is separated under `py_modules/`:
 ### 3) Run
 
 ```bash
+# From the repository root; runs `make build` first so the wrapper can find ./bin/synapse.
+make wrapper ARGS="--config synapse/config.yaml"
+
+# Or from this directory after building:
 python3 synapse.py --config config.yaml
 ```
 
