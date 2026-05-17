@@ -45,9 +45,6 @@ func NewWriter(filepath string, useJSON bool, quiet bool) (*Writer, error) {
 
 // WriteResult writes a scan result to configured destinations.
 func (w *Writer) WriteResult(r Result) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	var output []byte
 	var err error
 
@@ -64,6 +61,9 @@ func (w *Writer) WriteResult(r Result) error {
 			output = []byte(fmt.Sprintf("%s:%d [%s]\n", r.IP, r.Port, r.State))
 		}
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	if !w.quiet {
 		if _, err := w.out.Write(output); err != nil {
