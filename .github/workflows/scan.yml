@@ -1,0 +1,51 @@
+name: SYNapse Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target IP or CIDR'
+        required: true
+        type: string
+      ports:
+        description: 'Ports to scan'
+        required: false
+        type: string
+        default: '21,22,80,443,3306,5432,6379,139,445,8080,8443'
+      telegram_chat_id:
+        description: 'Telegram chat ID alias'
+        required: false
+        type: string
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Tools
+        run: |
+          for tool in nuclei httpx subfinder; do wget -q $(curl -s https://api.github.com/repos/projectdiscovery/$tool/releases/latest | grep "browser_download_url" | grep "linux_amd64.zip" | cut -d '"' -f 4) && unzip -o *.zip && rm *.zip; done && chmod +x nuclei httpx subfinder && sudo mv nuclei httpx subfinder /usr/local/bin/ && rm -f README.md LICENSE.md LICENSE CHANGELOG.md && echo "Tools installed and CWD cleaned."
+
+      - name: Install Python dependencies
+        run: pip install -r synapse/requirements.txt
+
+      - name: Build SYNapse wrapper
+        run: make build-wrapper
+
+      - name: Run SYNapse Python Wrapper
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          python3 synapse/synapse.py -t "${{ github.event.inputs.target }}" -p "${{ github.event.inputs.ports }}" --telegram-chat-id "${{ github.event.inputs.telegram_chat_id }}" --telegram-token "$BOT_TOKEN"
