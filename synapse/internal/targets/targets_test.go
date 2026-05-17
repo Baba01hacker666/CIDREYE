@@ -38,6 +38,12 @@ func TestGenerator_Generate(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name:    "CIDR maximum IP maxuint32",
+			target:  "255.255.255.254/31",
+			want:    []string{"255.255.255.254", "255.255.255.255"},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
