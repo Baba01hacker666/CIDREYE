@@ -4,7 +4,7 @@ def run(ip, port, **kwargs):
     if port != 3306:
         return None
     try:
-        with socket.create_connection((ip, 3306), timeout=3) as s:
+        with socket.create_connection((ip, port), timeout=3) as s:
             banner = s.recv(256)
             if banner:
                 return f"[INFO] MySQL/MariaDB handshake exposed on {ip}:3306"

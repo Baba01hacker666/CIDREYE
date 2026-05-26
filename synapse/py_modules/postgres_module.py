@@ -5,7 +5,7 @@ def run(ip, port, **kwargs):
     if port != 5432:
         return None
     try:
-        with socket.create_connection((ip, 5432), timeout=3) as s:
+        with socket.create_connection((ip, port), timeout=3) as s:
             msg = struct.pack('!I', 8) + struct.pack('!I', 80877103)
             s.sendall(msg)
             resp = s.recv(1)

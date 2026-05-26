@@ -100,6 +100,7 @@ func TestGenerator_GenerateFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(f.Name())
+	defer f.Close()
 
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatal(err)
@@ -138,6 +139,7 @@ func TestGenerator_GenerateWithExclude(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(f.Name())
+	defer f.Close()
 
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatal(err)

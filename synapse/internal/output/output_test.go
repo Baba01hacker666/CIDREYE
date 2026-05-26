@@ -14,12 +14,14 @@ func TestWriter_WriteResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(tempStdout.Name())
+	defer tempStdout.Close()
 
 	tempFile, err := os.CreateTemp("", "output-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
 
 	w, err := NewWriter(tempFile.Name(), false, false)
 	if err != nil {
@@ -60,20 +62,17 @@ func TestWriter_WriteResult(t *testing.T) {
 func TestWriter_WriteResultJSON(t *testing.T) {
 	var buf bytes.Buffer
 
-	w := &Writer{
-		json:  true,
-		quiet: false,
-		out:   nil, // Mocked with buffer via an interface if we could, but here we just assign to an os.File mock?
-	}
-
-	// Instead of mocking w.out which is os.File, just use file output to test JSON
 	tempFile, err := os.CreateTemp("", "output-json-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
 
-	w.file = tempFile
+	w, err := NewWriter(tempFile.Name(), true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r := Result{IP: "127.0.0.1", Port: 80, State: "OPEN", Banner: "HTTP/1.1"}
 
@@ -103,6 +102,7 @@ func TestWriter_Quiet(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(tempStdout.Name())
+	defer tempStdout.Close()
 
 	w := &Writer{
 		json:  false,
@@ -155,6 +155,7 @@ func TestWriter_Log(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer os.Remove(tempStdout.Name())
+	defer tempStdout.Close()
 			defer tempStdout.Close()
 
 			w := &Writer{

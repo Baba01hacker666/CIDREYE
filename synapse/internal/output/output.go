@@ -3,6 +3,7 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"bufio"
 	"os"
 	"sync"
 )
@@ -19,6 +20,7 @@ type Result struct {
 type Writer struct {
 	mu    sync.Mutex
 	file  *os.File
+	fileBuf *bufio.Writer
 	json  bool
 	quiet bool
 	out   *os.File // usually os.Stdout
@@ -38,6 +40,7 @@ func NewWriter(filepath string, useJSON bool, quiet bool) (*Writer, error) {
 			return nil, fmt.Errorf("failed to open output file: %w", err)
 		}
 		w.file = f
+		w.fileBuf = bufio.NewWriter(f)
 	}
 
 	return w, nil
@@ -72,7 +75,7 @@ func (w *Writer) WriteResult(r Result) error {
 	}
 
 	if w.file != nil {
-		if _, err := w.file.Write(output); err != nil {
+		if _, err := w.fileBuf.Write(output); err != nil {
 			return err
 		}
 	}
@@ -86,6 +89,7 @@ func (w *Writer) Close() error {
 	defer w.mu.Unlock()
 
 	if w.file != nil {
+		w.fileBuf.Flush()
 		return w.file.Close()
 	}
 	return nil

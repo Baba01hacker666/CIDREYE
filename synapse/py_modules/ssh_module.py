@@ -7,13 +7,13 @@ except ImportError:
 import concurrent.futures
 
 
-def _attempt_login(ip, user, pwd):
+def _attempt_login(ip, port, user, pwd):
     try:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
             ip, 
-            port=22, 
+            port=port,
             username=user, 
             password=pwd, 
             timeout=3, 
@@ -40,13 +40,14 @@ def run(ip, port, **kwargs):
         return None
 
     # Thread out the login attempts for performance
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(32, len(creds))) as executor:
-        futures = [executor.submit(_attempt_login, ip, user, pwd) for user, pwd in creds]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(32, len(creds) or 1)) as executor:
+        futures = [executor.submit(_attempt_login, ip, port, user, pwd) for user, pwd in creds]
         
         for future in concurrent.futures.as_completed(futures):
             success, result = future.result()
             if success:
                 # Return immediately on the first successful hit
+                executor.shutdown(wait=False, cancel_futures=True)
                 return result
                 
     return None

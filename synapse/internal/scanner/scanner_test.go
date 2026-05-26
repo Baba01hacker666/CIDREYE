@@ -67,6 +67,8 @@ func TestScanner_Run(t *testing.T) {
 	// Wait briefly for writer to finish writing
 	time.Sleep(100 * time.Millisecond)
 
+	writer.Close()
+
 	outBytes, err := os.ReadFile(tempOut.Name())
 	if err != nil {
 		t.Fatal(err)
