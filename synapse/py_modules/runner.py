@@ -23,6 +23,7 @@ MODULE_REGISTRY = {
     "http": http_module,
 }
 
+
 def run_modules(results, enabled_modules):
     """Run all enabled modules for each result row.
 
