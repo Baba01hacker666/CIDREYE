@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -177,18 +178,18 @@ func filterCriticalHigh(inputFile string) (string, error) {
 	}
 	defer outFile.Close()
 
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.Contains(line, "[critical]") || strings.Contains(line, "[high]") {
 			if _, err := outFile.WriteString(line + "\n"); err != nil {
 				return "", err
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
 	}
 
 	return outFile.Name(), nil
