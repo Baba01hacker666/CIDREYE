@@ -2,7 +2,11 @@ package main
 
 import (
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
+
+	"synapse/internal/output"
 )
 
 func TestParseSeverity(t *testing.T) {
@@ -62,5 +66,70 @@ invalid json
 	}
 	if len(findings) != 3 {
 		t.Errorf("expected 3 findings, got %d", len(findings))
+	}
+}
+
+// Helper to mock exec.Command
+func mockExecCommand(command string, args ...string) *exec.Cmd {
+	cs := []string{"-test.run=TestHelperProcess", "--", command}
+	cs = append(cs, args...)
+	cmd := exec.Command(os.Args[0], cs...)
+	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	return cmd
+}
+
+// TestHelperProcess is used to mock the nuclei executable.
+// It will do nothing and exit 0 for success, or exit 1 if GO_WANT_HELPER_FAIL is set.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	if os.Getenv("GO_WANT_HELPER_FAIL") == "1" {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func TestRunNucleiPipeline_NoTargets(t *testing.T) {
+	writer, _ := output.NewWriter("", false, true)
+	err := RunNucleiPipeline(writer, []string{}, NucleiConfig{})
+	if err != nil {
+		t.Errorf("expected nil error when no targets, got %v", err)
+	}
+}
+
+func TestRunNucleiPipeline_Success(t *testing.T) {
+	writer, _ := output.NewWriter("", false, true)
+	cfg := NucleiConfig{}
+
+	// Mock the execCommand to use our helper
+	oldExecCommand := execCommand
+	execCommand = mockExecCommand
+	defer func() { execCommand = oldExecCommand }()
+
+	err := RunNucleiPipeline(writer, []string{"1.2.3.4:80"}, cfg)
+	if err != nil {
+		t.Errorf("expected success, got error: %v", err)
+	}
+}
+
+func TestRunNucleiPipeline_ExecFailure(t *testing.T) {
+	writer, _ := output.NewWriter("", false, true)
+	cfg := NucleiConfig{}
+
+	// Mock the execCommand to use our helper and make it fail
+	oldExecCommand := execCommand
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		cmd := mockExecCommand(command, args...)
+		cmd.Env = append(cmd.Env, "GO_WANT_HELPER_FAIL=1")
+		return cmd
+	}
+	defer func() { execCommand = oldExecCommand }()
+
+	err := RunNucleiPipeline(writer, []string{"1.2.3.4:80"}, cfg)
+	if err == nil {
+		t.Errorf("expected error on exec failure, got nil")
+	} else if !strings.Contains(err.Error(), "run nuclei:") {
+		t.Errorf("expected error to mention 'run nuclei:', got %v", err)
 	}
 }

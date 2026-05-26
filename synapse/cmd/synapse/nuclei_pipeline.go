@@ -15,6 +15,8 @@ import (
 	"synapse/internal/output"
 )
 
+var execCommand = exec.Command
+
 type NucleiConfig struct {
 	Enabled     bool           `yaml:"enabled"`
 	Tags        string         `yaml:"tags"`
@@ -44,12 +46,18 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 	defer os.Remove(targetsFile.Name())
 	defer targetsFile.Close()
 
+	bufWriter := bufio.NewWriter(targetsFile)
 	for _, t := range openTargets {
-		if _, err := targetsFile.WriteString(t + "\n"); err != nil {
+		if _, err := bufWriter.WriteString(t + "\n"); err != nil {
 			return fmt.Errorf("write nuclei targets: %w", err)
 		}
 		targetsFile.Close()
 	}
+	if err := bufWriter.Flush(); err != nil {
+		return fmt.Errorf("flush nuclei targets: %w", err)
+	}
+	// We still need to wait until the file is written before doing things
+	targetsFile.Close()
 
 	outputFile := cfg.OutputFile
 	if outputFile == "" {
@@ -67,7 +75,7 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 	}
 
 	writer.Log("Running nuclei...")
-	cmd := exec.Command("nuclei", args...)
+	cmd := execCommand("nuclei", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
