@@ -39,32 +39,18 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		return nil
 	}
 
-	targetsFile, err := os.CreateTemp("", "synapse-open-targets-*.txt")
+	targetsFileName, err := prepareTargetsFile(openTargets)
 	if err != nil {
-		return fmt.Errorf("create nuclei targets file: %w", err)
+		return fmt.Errorf("prepare nuclei targets file: %w", err)
 	}
-	defer os.Remove(targetsFile.Name())
-	defer targetsFile.Close()
-
-	bufWriter := bufio.NewWriter(targetsFile)
-	for _, t := range openTargets {
-		if _, err := bufWriter.WriteString(t + "\n"); err != nil {
-			return fmt.Errorf("write nuclei targets: %w", err)
-		}
-		targetsFile.Close()
-	}
-	if err := bufWriter.Flush(); err != nil {
-		return fmt.Errorf("flush nuclei targets: %w", err)
-	}
-	// We still need to wait until the file is written before doing things
-	targetsFile.Close()
+	defer os.Remove(targetsFileName)
 
 	outputFile := cfg.OutputFile
 	if outputFile == "" {
 		outputFile = "nuclei-results.jsonl"
 	}
 
-	args := []string{"-l", targetsFile.Name(), "-jsonl", "-o", outputFile, "-nc"}
+	args := []string{"-l", targetsFileName, "-jsonl", "-o", outputFile, "-nc"}
 	if cfg.Tags != "" {
 		args = append(args, "-tags", cfg.Tags)
 	}
@@ -83,35 +69,57 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 	}
 
 	if cfg.Telegram.Enabled {
-		findings, err := filterBySeverity(outputFile, cfg.MinSeverity)
-		if err != nil {
-			return fmt.Errorf("filter telegram output: %w", err)
+		if err := handleTelegramUpload(writer, cfg.Telegram, outputFile, cfg.MinSeverity); err != nil {
+			return err
 		}
-
-		if len(findings) == 0 {
-			writer.Log("No findings matching minimum severity to send to Telegram. Skipping upload.")
-			return nil
-		}
-
-		filteredFile, err := os.CreateTemp("", "synapse-telegram-*.json")
-		if err != nil {
-			return fmt.Errorf("create telegram output file: %w", err)
-		}
-		defer os.Remove(filteredFile.Name())
-
-		encoder := json.NewEncoder(filteredFile)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(findings); err != nil {
-			filteredFile.Close()
-			return fmt.Errorf("encode telegram output: %w", err)
-		}
-		filteredFile.Close()
-
-		if err := sendSummaryToTelegram(cfg.Telegram, findings, filteredFile.Name()); err != nil {
-			return fmt.Errorf("telegram send failed: %w", err)
-		}
-		writer.Log("Nuclei output sent to Telegram chat %s", cfg.Telegram.ChatID)
 	}
+	return nil
+}
+
+func prepareTargetsFile(openTargets []string) (string, error) {
+	targetsFile, err := os.CreateTemp("", "synapse-open-targets-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("create nuclei targets file: %w", err)
+	}
+	defer targetsFile.Close()
+
+	for _, t := range openTargets {
+		if _, err := targetsFile.WriteString(t + "\n"); err != nil {
+			return "", fmt.Errorf("write nuclei targets: %w", err)
+		}
+	}
+	return targetsFile.Name(), nil
+}
+
+func handleTelegramUpload(writer *output.Writer, cfg TelegramConfig, outputFile string, minSeverity string) error {
+	findings, err := filterBySeverity(outputFile, minSeverity)
+	if err != nil {
+		return fmt.Errorf("filter telegram output: %w", err)
+	}
+
+	if len(findings) == 0 {
+		writer.Log("No findings matching minimum severity to send to Telegram. Skipping upload.")
+		return nil
+	}
+
+	filteredFile, err := os.CreateTemp("", "synapse-telegram-*.json")
+	if err != nil {
+		return fmt.Errorf("create telegram output file: %w", err)
+	}
+	defer os.Remove(filteredFile.Name())
+
+	encoder := json.NewEncoder(filteredFile)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(findings); err != nil {
+		filteredFile.Close()
+		return fmt.Errorf("encode telegram output: %w", err)
+	}
+	filteredFile.Close()
+
+	if err := sendSummaryToTelegram(cfg, findings, filteredFile.Name()); err != nil {
+		return fmt.Errorf("telegram send failed: %w", err)
+	}
+	writer.Log("Nuclei output sent to Telegram chat %s", cfg.ChatID)
 	return nil
 }
 
