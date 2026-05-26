@@ -11,10 +11,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"synapse/internal/sysutil"
 	"synapse/internal/output"
 	"synapse/internal/ports"
 	"synapse/internal/scanner"
+	"synapse/internal/sysutil"
 	"synapse/internal/targets"
 )
 

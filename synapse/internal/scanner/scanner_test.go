@@ -168,12 +168,12 @@ func TestGrabBannerActiveProbe(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		
+
 		// Read the probe
 		buf := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		n, _ := conn.Read(buf)
-		
+
 		if strings.HasPrefix(string(buf[:n]), "GET / HTTP/1.0") {
 			conn.Write([]byte("HTTP/1.1 200 OK\r\nServer: CustomHTTP\r\n\r\n"))
 		}
