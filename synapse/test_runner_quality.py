@@ -3,13 +3,13 @@ from py_modules import runner
 
 class _OkModule:
     @staticmethod
-    def run(ip, port):
+    def run(ip, port, **kwargs):
         return f"ok:{ip}:{port}"
 
 
 class _FailingModule:
     @staticmethod
-    def run(ip, port):
+    def run(ip, port, **kwargs):
         raise RuntimeError("unexpected module failure")
 
 

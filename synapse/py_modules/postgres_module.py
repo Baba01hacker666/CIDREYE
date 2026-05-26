@@ -1,7 +1,7 @@
 import socket
 import struct
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if port != 5432:
         return None
     try:

@@ -18,3 +18,12 @@ modules:
 telegram:
   bot_token: ""
   chat_id: ""
+
+module_configs:
+  ssh:
+    credentials:
+      - ["admin", "admin"]
+      - ["admin", "password"]
+      - ["root", "root"]
+      - ["root", "admin"]
+      - ["ubnt", "ubnt"]

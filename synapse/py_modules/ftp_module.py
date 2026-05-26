@@ -1,6 +1,6 @@
 import ftplib
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if port != 21:
         return None
     try:

@@ -4,21 +4,15 @@ try:
 except ImportError:
     SSH_AVAILABLE = False
 
-DEFAULT_CREDS = [
-    ("admin", "admin"),
-    ("admin", "password"),
-    ("root", "root"),
-    ("root", "admin"),
-    ("ubnt", "ubnt"),
-]
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if not SSH_AVAILABLE:
         return None
     if port != 22:
         return None
 
-    for user, pwd in DEFAULT_CREDS:
+    creds = kwargs.get("credentials", [])
+    for user, pwd in creds:
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

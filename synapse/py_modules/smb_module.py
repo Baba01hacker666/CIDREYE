@@ -4,7 +4,7 @@ try:
 except ImportError:
     SMB_AVAILABLE = False
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if not SMB_AVAILABLE:
         return None
     if port not in (139, 445):

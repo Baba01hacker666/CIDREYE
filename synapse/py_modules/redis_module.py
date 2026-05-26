@@ -1,7 +1,7 @@
 import socket
 
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if port != 6379:
         return None
     try:

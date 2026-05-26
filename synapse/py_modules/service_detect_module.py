@@ -3,7 +3,7 @@ SERVICE_BY_PORT = {
     3306: "MySQL/MariaDB", 5432: "PostgreSQL", 6379: "Redis", 139: "SMB", 445: "SMB",
 }
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     service = SERVICE_BY_PORT.get(port)
     if service:
         return f"[INFO] {service} appears open on {ip}:{port}"
