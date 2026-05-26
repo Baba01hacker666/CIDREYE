@@ -163,11 +163,14 @@ func (g *Generator) generateFromString(ctx context.Context, target string, out c
 		startNum := binary.BigEndian.Uint32(startIP.To4())
 		endNum := binary.BigEndian.Uint32(endIP.To4())
 
-		for i := startNum; i <= endNum; i++ {
+		for i := startNum; ; i++ {
 			select {
 			case <-ctx.Done():
 				return
 			case out <- intToIP(i).String():
+			}
+			if i == endNum {
+				break
 			}
 		}
 
