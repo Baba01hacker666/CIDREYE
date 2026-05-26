@@ -70,9 +70,13 @@ class SynapseConfigTests(unittest.TestCase):
             "synapse.os.path.exists", return_value=False
         ):
             run_mock.return_value.returncode = 0
-            self.synapse.run_synapse(
-                "/bin/syn", "127.0.0.1", "80", extra_args=["--nuclei-tags", "rce"]
+            config = self.synapse.RunConfig(
+                binary_path="/bin/syn",
+                target="127.0.0.1",
+                ports="80",
+                extra_args=["--nuclei-tags", "rce"]
             )
+            self.synapse.run_synapse(config)
             cmd = run_mock.call_args[0][0]
             self.assertEqual(cmd.count("--nuclei-tags"), 1)
 
