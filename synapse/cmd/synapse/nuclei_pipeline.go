@@ -51,6 +51,7 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		if _, err := bufWriter.WriteString(t + "\n"); err != nil {
 			return fmt.Errorf("write nuclei targets: %w", err)
 		}
+		targetsFile.Close()
 	}
 	if err := bufWriter.Flush(); err != nil {
 		return fmt.Errorf("flush nuclei targets: %w", err)
