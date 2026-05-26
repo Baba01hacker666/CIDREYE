@@ -123,3 +123,54 @@ func TestWriter_Quiet(t *testing.T) {
 		t.Errorf("Stdout should be empty when quiet is true, got: %q", string(stdoutContent))
 	}
 }
+
+func TestWriter_Log(t *testing.T) {
+	tests := []struct {
+		name     string
+		quiet    bool
+		format   string
+		args     []interface{}
+		expected string
+	}{
+		{
+			name:     "Log writes to stdout when not quiet",
+			quiet:    false,
+			format:   "Test log message %d",
+			args:     []interface{}{1},
+			expected: "Test log message 1\n",
+		},
+		{
+			name:     "Log does not write to stdout when quiet",
+			quiet:    true,
+			format:   "Test log message %d",
+			args:     []interface{}{2},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempStdout, err := os.CreateTemp("", "stdout-log-*")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Remove(tempStdout.Name())
+			defer tempStdout.Close()
+
+			w := &Writer{
+				quiet: tt.quiet,
+				out:   tempStdout,
+			}
+
+			w.Log(tt.format, tt.args...)
+
+			stdoutContent, err := os.ReadFile(tempStdout.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(stdoutContent) != tt.expected {
+				t.Errorf("Log output = %q, want %q", string(stdoutContent), tt.expected)
+			}
+		})
+	}
+}
