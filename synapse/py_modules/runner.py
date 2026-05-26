@@ -1,5 +1,6 @@
 """Module execution orchestration for scan findings."""
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from . import (
     ftp_module,
     http_module,
@@ -22,6 +23,7 @@ MODULE_REGISTRY = {
     "http": http_module,
 }
 
+
 def run_modules(results, enabled_modules):
     """Run all enabled modules for each result row.
 
@@ -34,17 +36,22 @@ def run_modules(results, enabled_modules):
         if enabled and name in MODULE_REGISTRY
     ]
 
-    for res in results:
-        ip = res.get("ip")
-        port = res.get("port")
-        if not ip or port is None:
-            continue
-        for module in modules:
+    with ThreadPoolExecutor(max_workers=min(32, (len(results) * len(modules)) or 1)) as executor:
+        futures = []
+        for res in results:
+            ip = res.get("ip")
+            port = res.get("port")
+            if not ip or port is None:
+                continue
+            for module in modules:
+                futures.append(executor.submit(module.run, ip, port))
+
+        for future in as_completed(futures):
             try:
-                finding = module.run(ip, port)
+                finding = future.result()
+                if finding:
+                    findings.append(finding)
+                    print(finding)
             except Exception:
                 continue
-            if finding:
-                findings.append(finding)
-                print(finding)
     return findings

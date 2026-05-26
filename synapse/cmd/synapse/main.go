@@ -34,12 +34,7 @@ type Config struct {
 	Nuclei      NucleiConfig `yaml:"nuclei"`
 }
 
-func main() {
-	// Try to raise FD limits at the very start to support high concurrency
-	if err := sysutil.RaiseFileDescriptorLimit(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to raise file descriptor limit: %v\n", err)
-	}
-
+func parseConfig() (*Config, error) {
 	var (
 		configFile        string
 		targetFlag        string
@@ -120,12 +115,10 @@ func main() {
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading config file: %v\n", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing config file: %v\n", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error parsing config file: %w", err)
 		}
 	}
 
@@ -177,14 +170,69 @@ func main() {
 
 	// Check required fields
 	if cfg.Target == "" {
-		fmt.Fprintln(os.Stderr, "Error: Target is required (-t, --target, or config file)")
 		flag.Usage()
-		os.Exit(1)
+		return nil, fmt.Errorf("Target is required (-t, --target, or config file)")
 	}
 
 	if cfg.Ports == "" {
-		fmt.Fprintln(os.Stderr, "Error: Ports are required (-p, --ports, or config file)")
 		flag.Usage()
+		return nil, fmt.Errorf("Ports are required (-p, --ports, or config file)")
+	}
+
+	return &cfg, nil
+}
+
+func runScanner(ctx context.Context, cfg *Config, writer *output.Writer, parsedPorts []int) {
+	// Setup Target Generator
+	targetGen := targets.NewGenerator(cfg.Target, cfg.Exclude)
+	ipsCh, errCh := targetGen.Generate(ctx)
+
+	go func() {
+		for err := range errCh {
+			if err != nil {
+				writer.Log("Target generation error: %v", err)
+			}
+		}
+	}()
+
+	// Configure and Run Scanner
+	scanCfg := scanner.Config{
+		Concurrency: cfg.Concurrency,
+		RateLimit:   cfg.RateLimit,
+		Timeout:     time.Duration(cfg.TimeoutMs) * time.Millisecond,
+		Banner:      cfg.Banner,
+		Retries:     cfg.Retries,
+		Progress:    cfg.Progress,
+	}
+
+	sc := scanner.New(scanCfg, writer)
+
+	startTime := time.Now()
+	if err := sc.Run(ctx, ipsCh, parsedPorts); err != nil {
+		writer.Log("Scanner error: %v", err)
+	}
+
+	if !cfg.Quiet {
+		writer.Log("Scan completed in %v", time.Since(startTime))
+	}
+
+	if cfg.Nuclei.Enabled {
+		if err := runNucleiPipeline(writer, sc.OpenTargets(), cfg.Nuclei); err != nil {
+			writer.Log("Nuclei pipeline error: %v", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func main() {
+	// Try to raise FD limits at the very start to support high concurrency
+	if err := sysutil.RaiseFileDescriptorLimit(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to raise file descriptor limit: %v\n", err)
+	}
+
+	cfg, err := parseConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
 
@@ -227,45 +275,7 @@ func main() {
 		cancel()
 	}()
 
-	// Setup Target Generator
-	targetGen := targets.NewGenerator(cfg.Target, cfg.Exclude)
-	ipsCh, errCh := targetGen.Generate(ctx)
-
-	go func() {
-		for err := range errCh {
-			if err != nil {
-				writer.Log("Target generation error: %v", err)
-			}
-		}
-	}()
-
-	// Configure and Run Scanner
-	scanCfg := scanner.Config{
-		Concurrency: cfg.Concurrency,
-		RateLimit:   cfg.RateLimit,
-		Timeout:     time.Duration(cfg.TimeoutMs) * time.Millisecond,
-		Banner:      cfg.Banner,
-		Retries:     cfg.Retries,
-		Progress:    cfg.Progress,
-	}
-
-	sc := scanner.New(scanCfg, writer)
-
-	startTime := time.Now()
-	if err := sc.Run(ctx, ipsCh, parsedPorts); err != nil {
-		writer.Log("Scanner error: %v", err)
-	}
-
-	if !cfg.Quiet {
-		writer.Log("Scan completed in %v", time.Since(startTime))
-	}
-
-	if cfg.Nuclei.Enabled {
-		if err := runNucleiPipeline(writer, sc.OpenTargets(), cfg.Nuclei); err != nil {
-			writer.Log("Nuclei pipeline error: %v", err)
-			os.Exit(1)
-		}
-	}
+	runScanner(ctx, cfg, writer, parsedPorts)
 }
 
 func runNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiConfig) error {
