@@ -1,8 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -48,7 +48,7 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 		if _, err := targetsFile.WriteString(t + "\n"); err != nil {
 			return fmt.Errorf("write nuclei targets: %w", err)
 		}
-	targetsFile.Close()
+		targetsFile.Close()
 	}
 
 	outputFile := cfg.OutputFile
@@ -122,7 +122,7 @@ func sendSummaryToTelegram(cfg TelegramConfig, findings []NucleiFinding, rawFile
 	for sev, count := range severityCounts {
 		summary += fmt.Sprintf("- %s: %d\n", sev, count)
 	}
-	
+
 	summary += "\nTop Findings:\n"
 	for i, f := range findings {
 		if i >= 10 {
@@ -137,12 +137,12 @@ func sendSummaryToTelegram(cfg TelegramConfig, findings []NucleiFinding, rawFile
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	
+
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", cfg.BotToken)
 	data := strings.NewReader(fmt.Sprintf("chat_id=%s&text=%s", cfg.ChatID, strings.ReplaceAll(summary, "\n", "%0A")))
 	req, _ := http.NewRequest(http.MethodPost, url, data)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	
+
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -268,4 +268,3 @@ func parseSeverity(sev string) int {
 		return -1
 	}
 }
-
