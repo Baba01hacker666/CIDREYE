@@ -191,3 +191,51 @@ func TestGrabBannerActiveProbe(t *testing.T) {
 		t.Errorf("Expected banner to contain 'CustomHTTP', got: %s", banner)
 	}
 }
+
+func TestCleanBanner(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "normal printable string",
+			input:    "SSH-2.0-OpenSSH_8.2p1",
+			expected: "SSH-2.0-OpenSSH_8.2p1",
+		},
+		{
+			name:     "string with newlines",
+			input:    "SSH-2.0-OpenSSH_8.2p1\r\n",
+			expected: "SSH-2.0-OpenSSH_8.2p1  ",
+		},
+		{
+			name:     "unprintable ASCII characters",
+			input:    "SSH-2.0\x00\x01\x1f-OpenSSH",
+			expected: "SSH-2.0-OpenSSH",
+		},
+		{
+			name:     "unicode characters",
+			input:    "SSH-2.0-OpenSSH🔒",
+			expected: "SSH-2.0-OpenSSH",
+		},
+		{
+			name:     "mixed newlines and unprintable characters",
+			input:    "\x00HTTP/1.1 200 OK\r\nServer: nginx\r\n",
+			expected: "HTTP/1.1 200 OK  Server: nginx  ",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := cleanBanner(tc.input)
+			if result != tc.expected {
+				t.Errorf("cleanBanner(%q) = %q; want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
