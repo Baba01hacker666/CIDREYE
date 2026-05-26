@@ -1,7 +1,7 @@
 import socket
 
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if port not in (80, 8080, 443, 8443):
         return None
     try:

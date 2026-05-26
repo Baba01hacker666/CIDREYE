@@ -203,7 +203,7 @@ def main():
             "http": True,
         },
     )
-    findings = run_modules(results, enabled_modules=enabled_modules)
+    findings = run_modules(results, enabled_modules=enabled_modules, module_configs=cfg.get("module_configs", {}))
 
     telegram = cfg.get("telegram", {})
     token = args.telegram_token or telegram.get("bot_token")

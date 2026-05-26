@@ -1,6 +1,6 @@
 import socket
 
-def run(ip, port):
+def run(ip, port, **kwargs):
     if port != 3306:
         return None
     try:
