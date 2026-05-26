@@ -1,0 +1,7 @@
+# Performance Learnings in SYNapse
+
+- **Go/I/O Buffering**: When repeatedly writing to files (e.g., inside loops), always wrap the file in a `bufio.NewWriter` to buffer writes and avoid the performance penalty of unbuffered filesystem interactions, ensuring you call `Flush()` when complete.
+- **Go/Lock Contention**: To reduce lock contention in concurrent writers (e.g., the output writer), move CPU-intensive serialization logic (like `json.Marshal`, `fmt.Sprintf`) outside of mutex critical sections, exclusively locking around the actual I/O write operations.
+- **Go/Network Loop Optimization**: Prefer using `net.Dialer.Timeout` over `context.WithTimeout` in high-frequency network loops (like TCP scanning) to avoid expensive background timer allocations. For fast IP/port string formatting, use `net.JoinHostPort` instead of `fmt.Sprintf`.
+- **Python/Import Optimization**: Move optional third-party imports to the module level within `try...except ImportError` blocks and use a boolean availability flag to avoid the overhead of repeated import checks in function loops.
+- **Python/Concurrent I/O Loop Optimization**: Use `concurrent.futures.ThreadPoolExecutor` to parallelize sequential blocking network I/O loops (e.g., iterative connection attempts). Iterate results with `concurrent.futures.as_completed(futures)` to return early upon success. This changes a loop from $O(N \times \text{timeout})$ to $O(1 \times \text{timeout})$.
