@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,10 +12,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"synapse/internal/sysutil"
 	"synapse/internal/output"
 	"synapse/internal/ports"
 	"synapse/internal/scanner"
+	"synapse/internal/sysutil"
 	"synapse/internal/targets"
 )
 
@@ -35,10 +36,17 @@ type Config struct {
 }
 
 func main() {
+	os.Exit(Run(os.Args[1:], os.Stderr))
+}
+
+func Run(args []string, errOut io.Writer) int {
 	// Try to raise FD limits at the very start to support high concurrency
 	if err := sysutil.RaiseFileDescriptorLimit(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to raise file descriptor limit: %v\n", err)
+		fmt.Fprintf(errOut, "Warning: Failed to raise file descriptor limit: %v\n", err)
 	}
+
+	fs := flag.NewFlagSet("synapse", flag.ContinueOnError)
+	fs.SetOutput(errOut)
 
 	var (
 		configFile        string
@@ -64,43 +72,48 @@ func main() {
 		telegramChatID    string
 	)
 
-	flag.StringVar(&configFile, "config", "", "Path to YAML config file")
-	flag.StringVar(&targetFlag, "t", "", "Target IP, CIDR, or file (alias for --target)")
-	flag.StringVar(&targetFlag, "target", "", "Target IP, CIDR, or file")
-	flag.StringVar(&portsFlag, "p", "", "Ports to scan e.g., 80,443,1-1000 (alias for --ports)")
-	flag.StringVar(&portsFlag, "ports", "", "Ports to scan e.g., 80,443,1-1000")
-	flag.IntVar(&concFlag, "c", 1000, "Concurrency level (alias for --concurrency)")
-	flag.IntVar(&concFlag, "concurrency", 1000, "Concurrency level")
-	flag.IntVar(&rateFlag, "r", 0, "Rate limit in connections/sec (0 = unlimited) (alias for --rate)")
-	flag.IntVar(&rateFlag, "rate", 0, "Rate limit in connections/sec (0 = unlimited)")
-	flag.IntVar(&timeFlag, "timeout", 1000, "Timeout in milliseconds")
-	flag.StringVar(&outFlag, "o", "", "Output file (alias for --output)")
-	flag.StringVar(&outFlag, "output", "", "Output file")
-	flag.BoolVar(&jsonFlag, "json", false, "Output in JSON format")
-	flag.BoolVar(&quietFlag, "quiet", false, "Quiet mode (only print results)")
-	flag.BoolVar(&bannerFlag, "banner", false, "Enable banner grabbing")
-	flag.StringVar(&excludeFlag, "e", "", "IPs, CIDRs, or file containing targets to exclude (alias for --exclude)")
-	flag.StringVar(&excludeFlag, "exclude", "", "IPs, CIDRs, or file containing targets to exclude")
-	flag.IntVar(&retriesFlag, "retries", 0, "Number of retries for port scan")
-	flag.BoolVar(&progFlag, "progress", false, "Print periodic progress updates")
-	flag.BoolVar(&nucleiFlag, "nuclei", false, "Enable optional nuclei post-scan pipeline with automatic technology detection")
-	flag.StringVar(&nucleiTags, "nuclei-tags", "", "Comma-separated nuclei tags filter")
-	flag.StringVar(&nucleiTemplates, "nuclei-templates", "", "Comma-separated nuclei templates or directories")
-	flag.StringVar(&nucleiMinSeverity, "nuclei-min-severity", "", "Minimum nuclei severity (info|low|medium|high|critical)")
-	flag.StringVar(&nucleiOutput, "nuclei-output", "", "Nuclei output text file")
-	flag.BoolVar(&telegramFlag, "telegram", false, "Send nuclei output to Telegram")
-	flag.StringVar(&telegramToken, "telegram-token", "", "Telegram bot token")
-	flag.StringVar(&telegramChatID, "telegram-chat-id", "", "Telegram chat ID")
+	fs.StringVar(&configFile, "config", "", "Path to YAML config file")
+	fs.StringVar(&targetFlag, "t", "", "Target IP, CIDR, or file (alias for --target)")
+	fs.StringVar(&targetFlag, "target", "", "Target IP, CIDR, or file")
+	fs.StringVar(&portsFlag, "p", "", "Ports to scan e.g., 80,443,1-1000 (alias for --ports)")
+	fs.StringVar(&portsFlag, "ports", "", "Ports to scan e.g., 80,443,1-1000")
+	fs.IntVar(&concFlag, "c", 1000, "Concurrency level (alias for --concurrency)")
+	fs.IntVar(&concFlag, "concurrency", 1000, "Concurrency level")
+	fs.IntVar(&rateFlag, "r", 0, "Rate limit in connections/sec (0 = unlimited) (alias for --rate)")
+	fs.IntVar(&rateFlag, "rate", 0, "Rate limit in connections/sec (0 = unlimited)")
+	fs.IntVar(&timeFlag, "timeout", 1000, "Timeout in milliseconds")
+	fs.StringVar(&outFlag, "o", "", "Output file (alias for --output)")
+	fs.StringVar(&outFlag, "output", "", "Output file")
+	fs.BoolVar(&jsonFlag, "json", false, "Output in JSON format")
+	fs.BoolVar(&quietFlag, "quiet", false, "Quiet mode (only print results)")
+	fs.BoolVar(&bannerFlag, "banner", false, "Enable banner grabbing")
+	fs.StringVar(&excludeFlag, "e", "", "IPs, CIDRs, or file containing targets to exclude (alias for --exclude)")
+	fs.StringVar(&excludeFlag, "exclude", "", "IPs, CIDRs, or file containing targets to exclude")
+	fs.IntVar(&retriesFlag, "retries", 0, "Number of retries for port scan")
+	fs.BoolVar(&progFlag, "progress", false, "Print periodic progress updates")
+	fs.BoolVar(&nucleiFlag, "nuclei", false, "Enable optional nuclei post-scan pipeline with automatic technology detection")
+	fs.StringVar(&nucleiTags, "nuclei-tags", "", "Comma-separated nuclei tags filter")
+	fs.StringVar(&nucleiTemplates, "nuclei-templates", "", "Comma-separated nuclei templates or directories")
+	fs.StringVar(&nucleiMinSeverity, "nuclei-min-severity", "", "Minimum nuclei severity (info|low|medium|high|critical)")
+	fs.StringVar(&nucleiOutput, "nuclei-output", "", "Nuclei output text file")
+	fs.BoolVar(&telegramFlag, "telegram", false, "Send nuclei output to Telegram")
+	fs.StringVar(&telegramToken, "telegram-token", "", "Telegram bot token")
+	fs.StringVar(&telegramChatID, "telegram-chat-id", "", "Telegram chat ID")
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "SYNapse - High-performance userland TCP scanner\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags]\n", os.Args[0])
-		flag.PrintDefaults()
+	fs.Usage = func() {
+		fmt.Fprintf(errOut, "SYNapse - High-performance userland TCP scanner\n\n")
+		fmt.Fprintf(errOut, "Usage: synapse [flags]\n")
+		fs.PrintDefaults()
 	}
 
-	flag.Parse()
+	if err := fs.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 1
+	}
 	setFlags := map[string]bool{}
-	flag.Visit(func(f *flag.Flag) {
+	fs.Visit(func(f *flag.Flag) {
 		setFlags[f.Name] = true
 	})
 
@@ -120,12 +133,12 @@ func main() {
 	if configFile != "" {
 		data, err := os.ReadFile(configFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading config file: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(errOut, "Error reading config file: %v\n", err)
+			return 1
 		}
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing config file: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(errOut, "Error parsing config file: %v\n", err)
+			return 1
 		}
 	}
 
@@ -177,22 +190,22 @@ func main() {
 
 	// Check required fields
 	if cfg.Target == "" {
-		fmt.Fprintln(os.Stderr, "Error: Target is required (-t, --target, or config file)")
-		flag.Usage()
-		os.Exit(1)
+		fmt.Fprintln(errOut, "Error: Target is required (-t, --target, or config file)")
+		fs.Usage()
+		return 1
 	}
 
 	if cfg.Ports == "" {
-		fmt.Fprintln(os.Stderr, "Error: Ports are required (-p, --ports, or config file)")
-		flag.Usage()
-		os.Exit(1)
+		fmt.Fprintln(errOut, "Error: Ports are required (-p, --ports, or config file)")
+		fs.Usage()
+		return 1
 	}
 
 	// Setup Output Writer
 	writer, err := output.NewWriter(cfg.Output, cfg.JSON, cfg.Quiet)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error setting up output: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(errOut, "Error setting up output: %v\n", err)
+		return 1
 	}
 	defer writer.Close()
 
@@ -211,7 +224,7 @@ func main() {
 	parsedPorts, err := ports.Parse(cfg.Ports)
 	if err != nil {
 		writer.Log("Error parsing ports: %v", err)
-		os.Exit(1)
+		return 1
 	}
 
 	// Setup context with cancellation
@@ -263,9 +276,10 @@ func main() {
 	if cfg.Nuclei.Enabled {
 		if err := runNucleiPipeline(writer, sc.OpenTargets(), cfg.Nuclei); err != nil {
 			writer.Log("Nuclei pipeline error: %v", err)
-			os.Exit(1)
+			return 1
 		}
 	}
+	return 0
 }
 
 func runNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiConfig) error {
