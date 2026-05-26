@@ -5,7 +5,7 @@ def run(ip, port, **kwargs):
     if port != 6379:
         return None
     try:
-        with socket.create_connection((ip, 6379), timeout=3) as s:
+        with socket.create_connection((ip, port), timeout=3) as s:
             s.sendall(b"PING\r\n")
             data = s.recv(128)
             if b"+PONG" in data:

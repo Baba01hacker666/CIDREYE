@@ -27,6 +27,7 @@ func TestFilterBySeverity(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
 
 	content := `{"template-id": "test-1", "host": "1.1.1.1", "info": {"name": "Test 1", "severity": "info"}}
 {"template-id": "test-2", "host": "1.1.1.1", "info": {"name": "Test 2", "severity": "medium"}}

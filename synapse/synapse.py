@@ -37,6 +37,9 @@ def send_telegram(token, chat_id, text):
         req = urllib.request.Request(url, data=data)
         with urllib.request.urlopen(req, timeout=10) as response:
             return response.status == 200
+    except urllib.error.URLError as e:
+        print(f"[-] Telegram network error: {e.reason}")
+        return False
     except Exception as e:
         print(f"[-] Telegram error: {e}")
         return False
