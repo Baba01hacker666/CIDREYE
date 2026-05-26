@@ -39,6 +39,24 @@ func TestGenerator_Generate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "IPv6 CIDR not supported",
+			target:  "2001:db8::/32",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "IPv6 single IP not supported",
+			target:  "::1",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "invalid format with slash",
+			target:  "invalid/cidr",
+			want:    nil,
+			wantErr: true,
+		},
+		{
 			name:    "CIDR maximum IP maxuint32",
 			target:  "255.255.255.254/31",
 			want:    []string{"255.255.255.254", "255.255.255.255"},
