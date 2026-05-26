@@ -9,6 +9,8 @@ import urllib.request
 import yaml
 
 from py_modules import run_modules
+from dataclasses import dataclass
+from typing import List, Optional
 
 DEFAULT_OUTPUT_FILE = "synapse_results.jsonl"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -92,36 +94,39 @@ def _resolve_auto_cve_tag(cfg):
     return True
 
 
-def run_synapse(
-    binary_path,
-    target,
-    ports,
-    output_file=DEFAULT_OUTPUT_FILE,
-    extra_args=None,
-    auto_cve_tag=True,
-):
+@dataclass
+class RunConfig:
+    binary_path: str
+    target: str
+    ports: str
+    output_file: str = DEFAULT_OUTPUT_FILE
+    extra_args: Optional[List[str]] = None
+    auto_cve_tag: bool = True
+
+
+def run_synapse(config: RunConfig):
     cmd = [
-        binary_path,
+        config.binary_path,
         "-t",
-        target,
+        config.target,
         "-p",
-        ports,
+        config.ports,
         "-o",
-        output_file,
+        config.output_file,
         "--json",
         "--quiet",
     ]
-    if extra_args:
-        cmd.extend(extra_args)
+    if config.extra_args:
+        cmd.extend(config.extra_args)
     if (
-        auto_cve_tag
-        and _has_web_ports(ports)
-        and not any(arg.startswith("--nuclei-tags") for arg in (extra_args or []))
+        config.auto_cve_tag
+        and _has_web_ports(config.ports)
+        and not any(arg.startswith("--nuclei-tags") for arg in (config.extra_args or []))
     ):
         cmd.extend(["--nuclei-tags", "cve"])
 
-    if os.path.exists(output_file):
-        os.remove(output_file)
+    if os.path.exists(config.output_file):
+        os.remove(config.output_file)
 
     print(f"[*] Running SYNapse: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -129,8 +134,8 @@ def run_synapse(
         print(f"[-] SYNapse failed: {result.stderr}")
 
     results = []
-    if os.path.exists(output_file):
-        with open(output_file, "r", encoding="utf-8") as f:
+    if os.path.exists(config.output_file):
+        with open(config.output_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -174,7 +179,15 @@ def main():
         )
         sys.exit(1)
 
-    results = run_synapse(binary_path, target, ports, output, extra, auto_cve_tag)
+    run_config = RunConfig(
+        binary_path=binary_path,
+        target=target,
+        ports=ports,
+        output_file=output,
+        extra_args=extra,
+        auto_cve_tag=auto_cve_tag,
+    )
+    results = run_synapse(run_config)
     print(f"[*] Found {len(results)} open ports.")
 
     enabled_modules = cfg.get(
