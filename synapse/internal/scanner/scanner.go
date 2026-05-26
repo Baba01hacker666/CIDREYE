@@ -2,10 +2,10 @@ package scanner
 
 import (
 	"context"
-	"strconv"
 	"errors"
 	"net"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
