@@ -15,6 +15,8 @@ import (
 	"synapse/internal/output"
 )
 
+var execCommand = exec.Command
+
 type NucleiConfig struct {
 	Enabled     bool           `yaml:"enabled"`
 	Tags        string         `yaml:"tags"`
@@ -72,7 +74,7 @@ func RunNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiCo
 	}
 
 	writer.Log("Running nuclei...")
-	cmd := exec.Command("nuclei", args...)
+	cmd := execCommand("nuclei", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
