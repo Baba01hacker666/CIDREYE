@@ -17,6 +17,10 @@ class SynapseConfigTests(unittest.TestCase):
         self.assertTrue(self.synapse._has_web_ports("1-1024"))
         self.assertFalse(self.synapse._has_web_ports("22,3306,5432"))
 
+    def test_has_web_ports_handles_value_error(self):
+        self.assertFalse(self.synapse._has_web_ports("abc"))
+        self.assertFalse(self.synapse._has_web_ports("22,abc,3306"))
+
     def test_config_has_nuclei_tags(self):
         self.assertTrue(
             self.synapse._config_has_nuclei_tags({"nuclei_tags": "cve,rce"})
@@ -74,7 +78,7 @@ class SynapseConfigTests(unittest.TestCase):
                 binary_path="/bin/syn",
                 target="127.0.0.1",
                 ports="80",
-                extra_args=["--nuclei-tags", "rce"]
+                extra_args=["--nuclei-tags", "rce"],
             )
             self.synapse.run_synapse(config)
             cmd = run_mock.call_args[0][0]
