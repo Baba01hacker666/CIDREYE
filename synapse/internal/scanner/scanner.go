@@ -257,7 +257,7 @@ func grabBanner(conn net.Conn, timeout time.Duration) string {
 }
 
 func cleanBanner(b string) string {
-	var clean []rune
+	clean := make([]rune, 0, len(b))
 	for _, r := range b {
 		if r >= 32 && r <= 126 {
 			clean = append(clean, r)
