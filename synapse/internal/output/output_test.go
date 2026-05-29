@@ -155,7 +155,7 @@ func TestWriter_Log(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer os.Remove(tempStdout.Name())
-	defer tempStdout.Close()
+			defer tempStdout.Close()
 			defer tempStdout.Close()
 
 			w := &Writer{
