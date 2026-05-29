@@ -13,3 +13,4 @@
   - *Context:* `synapse/cmd/synapse/nuclei_pipeline.go`
   - *Impact:* Benchmark write times reduced from ~19ms/op to ~0.8ms/op (~22x improvement).
   - *Details:* Replaced `targetsFile.WriteString` inside a loop with `bufWriter := bufio.NewWriter(targetsFile)` and `bufWriter.Flush()` after the loop.
+Go performance learning in SYNapse: When creating slices whose final size is known upfront (such as when iterating over a map or array), pre-allocate the slice capacity using `make([]Type, 0, knownLength)` rather than declaring an empty slice `var name []Type` to minimize memory reallocations during `append`.

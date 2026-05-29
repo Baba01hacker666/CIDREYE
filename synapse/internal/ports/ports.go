@@ -72,7 +72,7 @@ func Parse(portsStr string) ([]int, error) {
 		return nil, fmt.Errorf("no valid ports found")
 	}
 
-	var ports []int
+	ports := make([]int, 0, len(portMap))
 	for port := range portMap {
 		ports = append(ports, port)
 	}
