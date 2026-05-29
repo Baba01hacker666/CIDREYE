@@ -1,9 +1,9 @@
 package output
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"bufio"
 	"os"
 	"sync"
 )
@@ -18,12 +18,12 @@ type Result struct {
 
 // Writer handles thread-safe writing of scan results.
 type Writer struct {
-	mu    sync.Mutex
-	file  *os.File
+	mu      sync.Mutex
+	file    *os.File
 	fileBuf *bufio.Writer
-	json  bool
-	quiet bool
-	out   *os.File // usually os.Stdout
+	json    bool
+	quiet   bool
+	out     *os.File // usually os.Stdout
 }
 
 // NewWriter creates a new output Writer.
