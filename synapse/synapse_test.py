@@ -9,6 +9,24 @@ class SynapseConfigTests(unittest.TestCase):
             self.skipTest("pyyaml not installed in environment")
         self.synapse = importlib.import_module("synapse")
 
+    def test_load_config_file_not_found(self):
+        with mock.patch("synapse.os.path.exists", return_value=False):
+            self.assertEqual(self.synapse.load_config("missing.yaml"), {})
+
+    def test_load_config_valid_yaml(self):
+        with mock.patch("synapse.os.path.exists", return_value=True):
+            with mock.patch(
+                "builtins.open", mock.mock_open(read_data="foo: bar\nnum: 42")
+            ):
+                self.assertEqual(
+                    self.synapse.load_config("valid.yaml"), {"foo": "bar", "num": 42}
+                )
+
+    def test_load_config_empty_yaml(self):
+        with mock.patch("synapse.os.path.exists", return_value=True):
+            with mock.patch("builtins.open", mock.mock_open(read_data="")):
+                self.assertEqual(self.synapse.load_config("empty.yaml"), {})
+
     def test_has_web_ports_detects_http_https_and_common_alts(self):
         self.assertTrue(self.synapse._has_web_ports("80"))
         self.assertTrue(self.synapse._has_web_ports("443"))
@@ -74,7 +92,7 @@ class SynapseConfigTests(unittest.TestCase):
                 binary_path="/bin/syn",
                 target="127.0.0.1",
                 ports="80",
-                extra_args=["--nuclei-tags", "rce"]
+                extra_args=["--nuclei-tags", "rce"],
             )
             self.synapse.run_synapse(config)
             cmd = run_mock.call_args[0][0]

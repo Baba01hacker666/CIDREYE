@@ -134,3 +134,23 @@ func TestRunNucleiPipeline_ExecFailure(t *testing.T) {
 		t.Errorf("expected error to mention 'run nuclei:', got %v", err)
 	}
 }
+
+func TestPrepareTargetsFile(t *testing.T) {
+	targets := []string{"127.0.0.1:80", "192.168.1.1:443"}
+
+	fileName, err := prepareTargetsFile(targets)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer os.Remove(fileName)
+
+	content, err := os.ReadFile(fileName)
+	if err != nil {
+		t.Fatalf("failed to read created file: %v", err)
+	}
+
+	expectedContent := "127.0.0.1:80\n192.168.1.1:443\n"
+	if string(content) != expectedContent {
+		t.Errorf("expected %q, got %q", expectedContent, string(content))
+	}
+}
