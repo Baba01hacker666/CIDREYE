@@ -175,3 +175,85 @@ func TestWriter_Log(t *testing.T) {
 		})
 	}
 }
+
+func TestNewWriter(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "newwriter-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name      string
+		filepath  string
+		useJSON   bool
+		quiet     bool
+		wantError bool
+		checkFile bool
+	}{
+		{
+			name:      "Empty filepath",
+			filepath:  "",
+			useJSON:   false,
+			quiet:     true,
+			wantError: false,
+			checkFile: false,
+		},
+		{
+			name:      "Valid filepath",
+			filepath:  tmpDir + "/valid.log",
+			useJSON:   true,
+			quiet:     false,
+			wantError: false,
+			checkFile: true,
+		},
+		{
+			name:      "Invalid filepath",
+			filepath:  tmpDir + "/nonexistent/invalid.log",
+			useJSON:   false,
+			quiet:     false,
+			wantError: true,
+			checkFile: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w, err := NewWriter(tt.filepath, tt.useJSON, tt.quiet)
+
+			if (err != nil) != tt.wantError {
+				t.Errorf("NewWriter() error = %v, wantError %v", err, tt.wantError)
+				return
+			}
+
+			if !tt.wantError {
+				if w.json != tt.useJSON {
+					t.Errorf("NewWriter() json = %v, want %v", w.json, tt.useJSON)
+				}
+				if w.quiet != tt.quiet {
+					t.Errorf("NewWriter() quiet = %v, want %v", w.quiet, tt.quiet)
+				}
+				if w.out != os.Stdout {
+					t.Errorf("NewWriter() out != os.Stdout")
+				}
+				if tt.checkFile {
+					if w.file == nil {
+						t.Errorf("NewWriter() file = nil, want non-nil")
+					}
+					if w.fileBuf == nil {
+						t.Errorf("NewWriter() fileBuf = nil, want non-nil")
+					}
+					// Clean up the opened file
+					w.Close()
+				} else {
+					if w.file != nil {
+						t.Errorf("NewWriter() file = %v, want nil", w.file)
+					}
+					if w.fileBuf != nil {
+						t.Errorf("NewWriter() fileBuf = %v, want nil", w.fileBuf)
+					}
+				}
+			}
+		})
+	}
+}
