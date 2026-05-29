@@ -134,19 +134,21 @@ func sendSummaryToTelegram(cfg TelegramConfig, findings []NucleiFinding, rawFile
 		severityCounts[sev]++
 	}
 
-	summary := "SYNapse Nuclei Scan Complete.\n"
+	var summaryBuilder strings.Builder
+	summaryBuilder.WriteString("SYNapse Nuclei Scan Complete.\n")
 	for sev, count := range severityCounts {
-		summary += fmt.Sprintf("- %s: %d\n", sev, count)
+		fmt.Fprintf(&summaryBuilder, "- %s: %d\n", sev, count)
 	}
 
-	summary += "\nTop Findings:\n"
+	summaryBuilder.WriteString("\nTop Findings:\n")
 	for i, f := range findings {
 		if i >= 10 {
-			summary += "... and more.\n"
+			summaryBuilder.WriteString("... and more.\n")
 			break
 		}
-		summary += fmt.Sprintf("[%s] %s on %s\n", strings.ToUpper(f.Info.Severity), f.TemplateID, f.Host)
+		fmt.Fprintf(&summaryBuilder, "[%s] %s on %s\n", strings.ToUpper(f.Info.Severity), f.TemplateID, f.Host)
 	}
+	summary := summaryBuilder.String()
 
 	// First try to send the text message
 	timeout := cfg.UploadTimeout
