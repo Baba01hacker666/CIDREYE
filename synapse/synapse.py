@@ -124,7 +124,9 @@ def run_synapse(config: RunConfig):
     if (
         config.auto_cve_tag
         and _has_web_ports(config.ports)
-        and not any(arg.startswith("--nuclei-tags") for arg in (config.extra_args or []))
+        and not any(
+            arg.startswith("--nuclei-tags") for arg in (config.extra_args or [])
+        )
     ):
         cmd.extend(["--nuclei-tags", "cve"])
 
@@ -206,10 +208,16 @@ def main():
             "http": True,
         },
     )
-    findings = run_modules(results, enabled_modules=enabled_modules, module_configs=cfg.get("module_configs", {}))
+    findings = run_modules(
+        results,
+        enabled_modules=enabled_modules,
+        module_configs=cfg.get("module_configs", {}),
+    )
 
     telegram = cfg.get("telegram", {})
-    token = args.telegram_token or telegram.get("bot_token")
+    token = (
+        args.telegram_token or os.environ.get("BOT_TOKEN") or telegram.get("bot_token")
+    )
     chat = args.telegram_chat or args.telegram_chat_id or telegram.get("chat_id")
     alert_findings = [
         f for f in findings if f.startswith("[HIGH]") or f.startswith("[CRITICAL]")

@@ -48,4 +48,4 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
-          python3 synapse/synapse.py -t "${{ github.event.inputs.target }}" -p "${{ github.event.inputs.ports }}" --telegram-chat-id "${{ github.event.inputs.telegram_chat_id }}" --telegram-token "$BOT_TOKEN"
+          python3 synapse/synapse.py -t "${{ github.event.inputs.target }}" -p "${{ github.event.inputs.ports }}" --telegram-chat-id "${{ github.event.inputs.telegram_chat_id }}"
