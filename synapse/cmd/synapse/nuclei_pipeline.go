@@ -16,6 +16,7 @@ import (
 )
 
 var execCommand = exec.Command
+var telegramAPIBaseURL = "https://api.telegram.org"
 
 type NucleiConfig struct {
 	Enabled     bool           `yaml:"enabled"`
@@ -156,7 +157,7 @@ func sendSummaryToTelegram(cfg TelegramConfig, findings []NucleiFinding, rawFile
 		timeout = 30 * time.Second
 	}
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", cfg.BotToken)
+	url := fmt.Sprintf("%s/bot%s/sendMessage", telegramAPIBaseURL, cfg.BotToken)
 	data := strings.NewReader(fmt.Sprintf("chat_id=%s&text=%s", cfg.ChatID, strings.ReplaceAll(summary, "\n", "%0A")))
 	req, _ := http.NewRequest(http.MethodPost, url, data)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -207,7 +208,7 @@ func sendToTelegram(cfg TelegramConfig, filePath string) error {
 		}
 	}()
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendDocument", cfg.BotToken)
+	url := fmt.Sprintf("%s/bot%s/sendDocument", telegramAPIBaseURL, cfg.BotToken)
 	req, err := http.NewRequest(http.MethodPost, url, bodyReader)
 	if err != nil {
 		return err
