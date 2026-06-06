@@ -135,24 +135,42 @@ func TestScanner_Run_InvalidConfig(t *testing.T) {
 	}
 }
 
-func TestScanner_OpenTargets_Sorted(t *testing.T) {
-	sc := &Scanner{
-		openTargets: map[string]struct{}{
-			"10.0.0.2:443": {},
-			"10.0.0.1:22":  {},
-			"10.0.0.1:80":  {},
+func TestScanner_OpenTargets(t *testing.T) {
+	tests := []struct {
+		name        string
+		openTargets map[string]struct{}
+		want        []string
+	}{
+		{
+			name:        "empty targets",
+			openTargets: map[string]struct{}{},
+			want:        []string{},
+		},
+		{
+			name: "sorted targets",
+			openTargets: map[string]struct{}{
+				"10.0.0.2:443": {},
+				"10.0.0.1:22":  {},
+				"10.0.0.1:80":  {},
+			},
+			want: []string{
+				"10.0.0.1:22",
+				"10.0.0.1:80",
+				"10.0.0.2:443",
+			},
 		},
 	}
 
-	got := sc.OpenTargets()
-	want := []string{
-		"10.0.0.1:22",
-		"10.0.0.1:80",
-		"10.0.0.2:443",
-	}
-
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("OpenTargets() = %v, want %v", got, want)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sc := &Scanner{
+				openTargets: tc.openTargets,
+			}
+			got := sc.OpenTargets()
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("OpenTargets() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
