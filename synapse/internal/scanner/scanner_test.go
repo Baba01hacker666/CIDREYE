@@ -241,3 +241,80 @@ func TestCleanBanner(t *testing.T) {
 		})
 	}
 }
+
+func TestScanner_validateConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr string
+	}{
+		{
+			name: "valid config",
+			cfg: Config{
+				Concurrency: 10,
+				Timeout:     500 * time.Millisecond,
+				Retries:     1,
+			},
+			wantErr: "",
+		},
+		{
+			name: "zero concurrency",
+			cfg: Config{
+				Concurrency: 0,
+				Timeout:     500 * time.Millisecond,
+			},
+			wantErr: "scanner concurrency must be greater than 0",
+		},
+		{
+			name: "negative concurrency",
+			cfg: Config{
+				Concurrency: -1,
+				Timeout:     500 * time.Millisecond,
+			},
+			wantErr: "scanner concurrency must be greater than 0",
+		},
+		{
+			name: "zero timeout",
+			cfg: Config{
+				Concurrency: 1,
+				Timeout:     0,
+			},
+			wantErr: "scanner timeout must be greater than 0",
+		},
+		{
+			name: "negative timeout",
+			cfg: Config{
+				Concurrency: 1,
+				Timeout:     -1,
+			},
+			wantErr: "scanner timeout must be greater than 0",
+		},
+		{
+			name: "negative retries",
+			cfg: Config{
+				Concurrency: 1,
+				Timeout:     500 * time.Millisecond,
+				Retries:     -1,
+			},
+			wantErr: "scanner retries cannot be negative",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sc := &Scanner{
+				cfg: tc.cfg,
+			}
+			err := sc.validateConfig()
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateConfig() expected no error, got %v", err)
+				}
+			} else {
+				if err == nil || err.Error() != tc.wantErr {
+					t.Fatalf("validateConfig() error = %v, want %q", err, tc.wantErr)
+				}
+			}
+		})
+	}
+}
