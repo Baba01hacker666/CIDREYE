@@ -187,13 +187,7 @@ func runScanner(ctx context.Context, cfg *Config, writer *output.Writer, parsedP
 	targetGen := targets.NewGenerator(cfg.Target, cfg.Exclude)
 	ipsCh, errCh := targetGen.Generate(ctx)
 
-	go func() {
-		for err := range errCh {
-			if err != nil {
-				writer.Log("Target generation error: %v", err)
-			}
-		}
-	}()
+	go handleTargetErrors(errCh, writer)
 
 	// Configure and Run Scanner
 	scanCfg := scanner.Config{
@@ -269,15 +263,25 @@ func main() {
 	// Handle signals for graceful shutdown
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		writer.Log("\nInterrupt received, shutting down...")
-		cancel()
-	}()
+	go handleSignals(sigCh, writer, cancel)
 
 	runScanner(ctx, cfg, writer, parsedPorts)
 }
 
 func runNucleiPipeline(writer *output.Writer, openTargets []string, cfg NucleiConfig) error {
 	return RunNucleiPipeline(writer, openTargets, cfg)
+}
+
+func handleTargetErrors(errCh <-chan error, writer *output.Writer) {
+	for err := range errCh {
+		if err != nil {
+			writer.Log("Target generation error: %v", err)
+		}
+	}
+}
+
+func handleSignals(sigCh <-chan os.Signal, writer *output.Writer, cancel context.CancelFunc) {
+	<-sigCh
+	writer.Log("\nInterrupt received, shutting down...")
+	cancel()
 }
