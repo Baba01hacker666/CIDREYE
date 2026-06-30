@@ -38,6 +38,9 @@ class SynapseConfigTests(unittest.TestCase):
     def test_has_web_ports_handles_value_error(self):
         self.assertFalse(self.synapse._has_web_ports("abc"))
         self.assertFalse(self.synapse._has_web_ports("22,abc,3306"))
+        self.assertFalse(self.synapse._has_web_ports("80-abc"))
+        self.assertFalse(self.synapse._has_web_ports("abc-80"))
+        self.assertFalse(self.synapse._has_web_ports("abc-def"))
 
     def test_config_has_nuclei_tags(self):
         self.assertTrue(
